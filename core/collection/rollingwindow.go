@@ -1,6 +1,7 @@
 package collection
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -13,13 +14,18 @@ type (
 
 	// RollingWindow defines a rolling window to calculate the events in buckets with time interval.
 	RollingWindow struct {
-		lock          sync.RWMutex
-		size          int
-		win           *window
-		interval      time.Duration
+		lock sync.RWMutex
+		// 滑动窗口大小
+		size int
+		// 窗口
+		win *window
+		// 滑动窗口中bucket时间间隔
+		interval time.Duration
+		// 上一个bucket的位置
 		offset        int
 		ignoreCurrent bool
-		lastTime      time.Duration // start time of the last bucket
+		// 使用上一个bucket的开始时间
+		lastTime time.Duration // start time of the last bucket
 	}
 )
 
@@ -70,11 +76,12 @@ func (rw *RollingWindow) Reduce(fn func(b *Bucket)) {
 }
 
 func (rw *RollingWindow) span() int {
+	// 上次时间跨度的bucket数量
 	offset := int(timex.Since(rw.lastTime) / rw.interval)
 	if 0 <= offset && offset < rw.size {
 		return offset
 	}
-
+	// 如果跨度大于滑动窗口的大小(rw.size*rw.interval)，说明
 	return rw.size
 }
 
@@ -86,10 +93,12 @@ func (rw *RollingWindow) updateOffset() {
 
 	offset := rw.offset
 	// reset expired buckets
+	// span==rw.size 时所有的bucket过期被重置
 	for i := 0; i < span; i++ {
 		rw.win.resetBucket((offset + i + 1) % rw.size)
 	}
-
+	// 新的偏移= 上次位置+
+	fmt.Println("上次：", offset, "span:", span)
 	rw.offset = (offset + span) % rw.size
 	now := timex.Now()
 	// align to interval time boundary
